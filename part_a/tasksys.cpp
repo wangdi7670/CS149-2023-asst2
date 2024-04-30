@@ -1,16 +1,32 @@
 #include "tasksys.h"
 #include <thread>
+#include <assert.h>
+#include <queue>
+#include <mutex>
 
 IRunnable::~IRunnable() {}
 
-ITaskSystem::ITaskSystem(int num_threads) {}
+ITaskSystem::ITaskSystem(int num_threads) : num_threads_(num_threads) {}
+
 ITaskSystem::~ITaskSystem() {}
 
-typedef struct {
-    int task_id;
-    int num_total_tasks;
-    IRunnable *runnable;
-} ThreadArg;
+class ThreadArg {
+public:
+    std::mutex *mutex_;
+    int next_task_id_;
+    int num_total_tasks_;
+    IRunnable *runnable_;
+
+    ThreadArg(int num_total_tasks, IRunnable *runnable)
+        : num_total_tasks_(num_total_tasks), runnable_(runnable) {
+        next_task_id_ = 0;
+        mutex_ = new std::mutex();
+    }
+
+    ~ThreadArg() {
+        delete mutex_;
+    }
+};
 
 /*
  * ================================================================
@@ -66,36 +82,42 @@ TaskSystemParallelSpawn::TaskSystemParallelSpawn(int num_threads): ITaskSystem(n
 TaskSystemParallelSpawn::~TaskSystemParallelSpawn() {}
 
 void runTaskParallelSpawn(ThreadArg *arg) {
-    arg->runnable->runTask(arg->task_id, arg->num_total_tasks);
+    assert(arg != nullptr && arg->runnable_ != nullptr && arg->mutex_ != nullptr);
+
+    int i;
+
+    arg->mutex_->lock();
+    while (arg->next_task_id_ < arg->num_total_tasks_) {
+        i = arg->next_task_id_;
+        arg->next_task_id_++;
+        arg->mutex_->unlock();
+
+        arg->runnable_->runTask(i, arg->num_total_tasks_);
+        arg->mutex_->lock();
+    }
+    arg->mutex_->unlock();
 }
 
 void TaskSystemParallelSpawn::run(IRunnable* runnable, int num_total_tasks) {
-
-
     //
     // TODO: CS149 students will modify the implementation of this
     // method in Part A.  The implementation provided below runs all
     // tasks sequentially on the calling thread.
     //
+    
+    ThreadArg *arg = new ThreadArg(num_total_tasks, runnable);
+    std::thread *threads = new std::thread[num_threads_];
 
-    int num_threads = num_total_tasks;
-    ThreadArg args[num_threads];
-    for (int i = 0; i < num_threads; i++) {
-        args[i].task_id = i;
-        args[i].num_total_tasks = num_threads;
-        args[i].runnable = runnable;
-    }
+    for (int i = 0; i < num_threads_; i++) {
+        threads[i] = std::thread(runTaskParallelSpawn, arg);
+    } 
 
-    std::thread *threads = new std::thread[num_threads];
-    for (int i = 0; i < num_threads; i++) {
-        threads[i] = std::thread(runTaskParallelSpawn, &args[i]);
-    }
-
-    for (int i = 0; i < num_threads; i++) {
+    for (int i = 0; i < num_threads_; i++) {
         threads[i].join();
     }
 
     delete [] threads;
+    delete [] arg;
 }
 
 TaskID TaskSystemParallelSpawn::runAsyncWithDeps(IRunnable* runnable, int num_total_tasks,

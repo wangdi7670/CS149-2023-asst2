@@ -55,8 +55,7 @@ void bar(ThreadArgs *args) {
     }
 }
 
-
-int main(int argc, char* argv[]) {
+void test_barrier() {
     int nthreads = 3;
     int nround = 5;
 
@@ -75,6 +74,54 @@ int main(int argc, char* argv[]) {
         threads[i].join();
     }
     std::cout << "Passed=====" << "\n";
+}
 
+
+void test1() {
+    std::string str1 = "hello11";
+    std::string str2 = "hello11";
+    int equal = str1.compare(str2);
+    std::cout << equal << "\n";
+}
+
+void helper2(int i) {
+    std::cout << "haha: " << i << "\n";
+}
+
+void test2() {
+    std::thread thd;
+    thd = std::thread(helper2, 1);
+    thd.join();
+
+    std::cout << "main" << "\n";
+
+    thd = std::thread(helper2, 2);
+    thd.join();
+}
+
+void help3() {
+    std::cout << "help3 start" << "\n";
+    // std::terminate();
+    // std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    std::cout << "help3 end" << "\n";
+}
+
+void test3() {
+    std::thread thd;
+    thd = std::thread(help3);
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+
+    if (thd.joinable()) {
+        std::cout << "thd is joinable" << "\n";
+        thd.join();
+        assert(!thd.joinable());
+    } else {
+        std::cout << "not joinable" << "\n";
+    }
+
+}
+
+int main(int argc, char* argv[]) {
+    test3();
     return 0;
 }
