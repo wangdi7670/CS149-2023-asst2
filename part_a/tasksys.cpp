@@ -1,10 +1,16 @@
 #include "tasksys.h"
-
+#include <thread>
 
 IRunnable::~IRunnable() {}
 
 ITaskSystem::ITaskSystem(int num_threads) {}
 ITaskSystem::~ITaskSystem() {}
+
+typedef struct {
+    int task_id;
+    int num_total_tasks;
+    IRunnable *runnable;
+} ThreadArg;
 
 /*
  * ================================================================
@@ -59,6 +65,10 @@ TaskSystemParallelSpawn::TaskSystemParallelSpawn(int num_threads): ITaskSystem(n
 
 TaskSystemParallelSpawn::~TaskSystemParallelSpawn() {}
 
+void runTaskParallelSpawn(ThreadArg *arg) {
+    arg->runnable->runTask(arg->task_id, arg->num_total_tasks);
+}
+
 void TaskSystemParallelSpawn::run(IRunnable* runnable, int num_total_tasks) {
 
 
@@ -68,9 +78,24 @@ void TaskSystemParallelSpawn::run(IRunnable* runnable, int num_total_tasks) {
     // tasks sequentially on the calling thread.
     //
 
-    for (int i = 0; i < num_total_tasks; i++) {
-        runnable->runTask(i, num_total_tasks);
+    int num_threads = num_total_tasks;
+    ThreadArg args[num_threads];
+    for (int i = 0; i < num_threads; i++) {
+        args[i].task_id = i;
+        args[i].num_total_tasks = num_threads;
+        args[i].runnable = runnable;
     }
+
+    std::thread *threads = new std::thread[num_threads];
+    for (int i = 0; i < num_threads; i++) {
+        threads[i] = std::thread(runTaskParallelSpawn, &args[i]);
+    }
+
+    for (int i = 0; i < num_threads; i++) {
+        threads[i].join();
+    }
+
+    delete [] threads;
 }
 
 TaskID TaskSystemParallelSpawn::runAsyncWithDeps(IRunnable* runnable, int num_total_tasks,
