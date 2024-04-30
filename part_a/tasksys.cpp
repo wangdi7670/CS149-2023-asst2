@@ -104,7 +104,11 @@ void TaskSystemParallelSpawn::run(IRunnable* runnable, int num_total_tasks) {
     // method in Part A.  The implementation provided below runs all
     // tasks sequentially on the calling thread.
     //
-    
+
+    /* for (int i = 0; i < num_total_tasks; i++) {
+        runnable->runTask(i, num_total_tasks);
+    } */
+
     ThreadArg *arg = new ThreadArg(num_total_tasks, runnable);
     std::thread *threads = new std::thread[num_threads_];
 
