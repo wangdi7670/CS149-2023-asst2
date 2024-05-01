@@ -3,6 +3,24 @@
 
 #include "itasksys.h"
 
+class ThreadArg {
+public:
+    std::mutex *mutex_;
+    int next_task_id_;
+    int num_total_tasks_;
+    IRunnable *runnable_;
+
+    ThreadArg(int num_total_tasks, IRunnable *runnable)
+        : num_total_tasks_(num_total_tasks), runnable_(runnable) {
+        next_task_id_ = 0;
+        mutex_ = new std::mutex();
+    }
+
+    ~ThreadArg() {
+        delete mutex_;
+    }
+};
+
 /*
  * TaskSystemSerial: This class is the student's implementation of a
  * serial task execution engine.  See definition of ITaskSystem in
@@ -44,6 +62,7 @@ class TaskSystemParallelSpawn: public ITaskSystem {
  */
 class TaskSystemParallelThreadPoolSpinning: public ITaskSystem {
     public:
+        std::thread *threads_;
         TaskSystemParallelThreadPoolSpinning(int num_threads);
         ~TaskSystemParallelThreadPoolSpinning();
         const char* name();
@@ -51,6 +70,7 @@ class TaskSystemParallelThreadPoolSpinning: public ITaskSystem {
         TaskID runAsyncWithDeps(IRunnable* runnable, int num_total_tasks,
                                 const std::vector<TaskID>& deps);
         void sync();
+        void runTask(ThreadArg *arg);
 };
 
 /*
